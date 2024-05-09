@@ -36,6 +36,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/common/fileutils"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
@@ -489,6 +490,11 @@ func getBlockBloomSize(bi *BloomIndex) uint32 {
 }
 
 func getBaseSegDir(state string, streamid string, virtualTableName string, suffix uint64) string {
+	var extras string
+	if hook := hooks.GlobalHooks.GetBaseSegDirExtrasHook; hook != nil {
+		extras = hook(fmt.Sprintf("%s/%s/%d", streamid, virtualTableName, suffix))
+	}
+
 	return filepath.Join(
 		config.GetDataPath(),
 		config.GetHostID(),
@@ -496,6 +502,7 @@ func getBaseSegDir(state string, streamid string, virtualTableName string, suffi
 		virtualTableName,
 		streamid,
 		strconv.FormatUint(suffix, 10),
+		extras,
 	) + "/"
 }
 

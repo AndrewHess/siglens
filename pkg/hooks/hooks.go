@@ -101,6 +101,9 @@ type Hooks struct {
 
 	// Distributed query
 	InitDistributedQueryServiceHook func(querySummary interface{}, allSegFileResults interface{}) interface{}
+
+	// Segment key
+	GetBaseSegDirExtrasHook func(string) string
 }
 
 type HtmlSnippets struct {
