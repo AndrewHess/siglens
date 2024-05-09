@@ -42,7 +42,7 @@ type InfluxPutResp struct {
 
 func PutMetrics(ctx *fasthttp.RequestCtx, myid uint64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_INFLUX_METRICS, false)
+		alreadyHandled, _ := hook(ctx, myid, grpc.INGEST_FUNC_INFLUX_METRICS, false)
 		if alreadyHandled {
 			return
 		}

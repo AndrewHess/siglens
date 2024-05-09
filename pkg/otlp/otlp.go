@@ -39,8 +39,10 @@ import (
 )
 
 func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
+	var alreadyHandled bool
+	var rid uint64
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled := hook(ctx, 0 /* TODO */, grpc.INGEST_FUNC_OTLP_TRACES, false)
+		alreadyHandled, rid = hook(ctx, 0 /* TODO */, grpc.INGEST_FUNC_OTLP_TRACES, false)
 		if alreadyHandled {
 			return
 		}
@@ -111,7 +113,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 				}
 
 				lenJsonData := uint64(len(jsonData))
-				err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId)
+				err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId, rid)
 				if err != nil {
 					log.Errorf("ProcessTraceIngest: failed to process ingest request: %v", err)
 					numFailedSpans++

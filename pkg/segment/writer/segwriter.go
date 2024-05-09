@@ -56,7 +56,7 @@ import (
 const maxAllowedSegStores = 1000
 
 // global map
-var allSegStores = map[string]*SegStore{}
+var allSegStores = map[SegId]*SegStore{}
 var allSegStoresLock sync.RWMutex = sync.RWMutex{}
 var maxSegFileSize uint64
 
@@ -76,6 +76,19 @@ func InitKibanaInternalData() {
 	if err != nil {
 		log.Error(err)
 	}
+}
+
+type SegId struct {
+	StreamId string
+	Rid      uint64
+}
+
+func (s SegId) Equal(other SegId) bool {
+	return s.StreamId == other.StreamId && s.Rid == other.Rid
+}
+
+func (s SegId) Hash() uint64 {
+	return xxhash.Sum64String(s.StreamId) ^ s.Rid
 }
 
 type SegfileRotateInfo struct {
@@ -235,9 +248,9 @@ func cleanRecentlyRotatedInfo() {
 // place where we play with the locks
 
 func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
-	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64) error {
+	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64, rid uint64) error {
 
-	segstore, err := getSegStore(streamid, ts_millis, indexName, orgid)
+	segstore, err := getSegStore(streamid, ts_millis, indexName, orgid, rid)
 	if err != nil {
 		log.Errorf("AddEntryToInMemBuf, getSegstore err=%v", err)
 		return err
@@ -313,15 +326,15 @@ func AddTimeSeriesEntryToInMemBuf(rawJson []byte, signalType SIGNAL_TYPE, orgid 
 func ForcedFlushToSegfile() {
 	log.Warnf("Flushing %+v segment files on server exit", len(allSegStores))
 	allSegStoresLock.Lock()
-	for streamid, segstore := range allSegStores {
+	for segId, segstore := range allSegStores {
 		segstore.lock.Lock()
-		err := segstore.AppendWipToSegfile(streamid, true, false, false)
+		err := segstore.AppendWipToSegfile(segId.StreamId, true, false, false)
 		if err != nil {
 			log.Errorf("ForcedFlushToSegfile: failed to append err=%v", err)
 		}
-		log.Warnf("Flushing segment file for streamid %s server exit", streamid)
+		log.Warnf("Flushing segment file for streamid %s server exit", segId.StreamId)
 		segstore.lock.Unlock()
-		delete(allSegStores, streamid)
+		delete(allSegStores, segId)
 	}
 	allSegStoresLock.Unlock()
 }
@@ -355,19 +368,19 @@ func rotateSegmentOnTime() {
 			continue
 		}
 		wg.Add(1)
-		go func(streamid string, segstore *SegStore) {
+		go func(segId SegId, segstore *SegStore) {
 			defer wg.Done()
 			segstore.lock.Lock()
 			segstore.firstTime = false
-			err := segstore.AppendWipToSegfile(streamid, false, false, true)
+			err := segstore.AppendWipToSegfile(segId.StreamId, false, false, true)
 			if err != nil {
-				log.Errorf("rotateSegmentOnTime: failed to append,  streamid=%s err=%v", err, streamid)
+				log.Errorf("rotateSegmentOnTime: failed to append,  streamid=%s err=%v", err, segId.StreamId)
 			} else {
 				if time.Since(segstore.lastUpdated) > segRotateDuration*2 && segstore.RecordCount == 0 {
-					log.Infof("Deleting the segstore for streamid=%s", streamid)
-					delete(allSegStores, streamid)
+					log.Infof("Deleting the segstore for streamid=%s", segId.StreamId)
+					delete(allSegStores, segId)
 				} else {
-					log.Infof("Rotating segment due to time. streamid=%s and table=%s", streamid, segstore.VirtualTableName)
+					log.Infof("Rotating segment due to time. streamid=%s and table=%s", segId.StreamId, segstore.VirtualTableName)
 				}
 			}
 			segstore.lock.Unlock()
@@ -379,13 +392,13 @@ func rotateSegmentOnTime() {
 
 func ForceRotateSegmentsForTest() {
 	allSegStoresLock.Lock()
-	for streamid, segstore := range allSegStores {
+	for segId, segstore := range allSegStores {
 		segstore.lock.Lock()
-		err := segstore.AppendWipToSegfile(streamid, false, false, true)
+		err := segstore.AppendWipToSegfile(segId.StreamId, false, false, true)
 		if err != nil {
-			log.Errorf("ForceRotateSegmentsForTest: failed to append,  streamid=%s err=%v", err, streamid)
+			log.Errorf("ForceRotateSegmentsForTest: failed to append,  streamid=%s err=%v", err, segId.StreamId)
 		} else {
-			log.Infof("Rotating segment due to time. streamid=%s and table=%s", streamid, segstore.VirtualTableName)
+			log.Infof("Rotating segment due to time. streamid=%s and table=%s", segId.StreamId, segstore.VirtualTableName)
 		}
 		segstore.lock.Unlock()
 	}
@@ -402,14 +415,14 @@ func timeBasedRotateSegment() {
 
 func FlushWipBufferToFile(sleepDuration *time.Duration) {
 	allSegStoresLock.RLock()
-	for streamid, segstore := range allSegStores {
+	for segId, segstore := range allSegStores {
 		segstore.lock.Lock()
 		if segstore.wipBlock.maxIdx > 0 && time.Since(segstore.lastUpdated) > *sleepDuration {
-			err := segstore.AppendWipToSegfile(streamid, false, false, false)
+			err := segstore.AppendWipToSegfile(segId.StreamId, false, false, false)
 			if err != nil {
 				log.Errorf("FlushWipBufferToFile: failed to append, err=%v", err)
 			}
-			log.Infof("Flushed WIP buffer due to time. streamid=%s and table=%s", streamid, segstore.VirtualTableName)
+			log.Infof("Flushed WIP buffer due to time. streamid=%s and table=%s", segId.StreamId, segstore.VirtualTableName)
 		}
 		segstore.lock.Unlock()
 	}
@@ -430,13 +443,14 @@ func InitColWip(segKey string, colName string) *ColWip {
 // varint stores length of Record , it would occupy 1-9 bytes
 // The first bit of each byte of varint specifies whether there are follow on bytes
 // rest 7 bits are used to store the number
-func getSegStore(streamid string, ts_millis uint64, table string, orgId uint64) (*SegStore, error) {
+func getSegStore(streamid string, ts_millis uint64, table string, orgId uint64, rid uint64) (*SegStore, error) {
 
 	allSegStoresLock.Lock()
 	defer allSegStoresLock.Unlock()
 
 	var segstore *SegStore
-	segstore, present := allSegStores[streamid]
+	segId := SegId{StreamId: streamid, Rid: rid}
+	segstore, present := allSegStores[segId]
 	if !present {
 		if len(allSegStores) >= maxAllowedSegStores {
 			return nil, fmt.Errorf("getSegStore: max allowed segstores reached (%d)", maxAllowedSegStores)
@@ -452,7 +466,7 @@ func getSegStore(streamid string, ts_millis uint64, table string, orgId uint64) 
 		if err != nil {
 			return nil, err
 		}
-		allSegStores[streamid] = segstore
+		allSegStores[segId] = segstore
 		instrumentation.SetWriterSegstoreCountGauge(int64(len(allSegStores)))
 	}
 
