@@ -26,6 +26,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -487,28 +488,23 @@ func getBlockBloomSize(bi *BloomIndex) uint32 {
 	return nextBloomSize
 }
 
+func getBaseSegDir(state string, streamid string, virtualTableName string, suffix uint64) string {
+	return filepath.Join(
+		config.GetDataPath(),
+		config.GetHostID(),
+		state,
+		virtualTableName,
+		streamid,
+		strconv.FormatUint(suffix, 10),
+	) + "/"
+}
+
 func getActiveBaseSegDir(streamid string, virtualTableName string, suffix uint64) string {
-	var sb strings.Builder
-	sb.WriteString(config.GetDataPath())
-	sb.WriteString(config.GetHostID())
-	sb.WriteString("/active/")
-	sb.WriteString(virtualTableName + "/")
-	sb.WriteString(streamid + "/")
-	sb.WriteString(strconv.FormatUint(suffix, 10) + "/")
-	basedir := sb.String()
-	return basedir
+	return getBaseSegDir("active", streamid, virtualTableName, suffix)
 }
 
 func getFinalBaseSegDir(streamid string, virtualTableName string, suffix uint64) string {
-	var sb strings.Builder
-	sb.WriteString(config.GetDataPath())
-	sb.WriteString(config.GetHostID())
-	sb.WriteString("/final/")
-	sb.WriteString(virtualTableName + "/")
-	sb.WriteString(streamid + "/")
-	sb.WriteString(strconv.FormatUint(suffix, 10) + "/")
-	basedir := sb.String()
-	return basedir
+	return getBaseSegDir("final", streamid, virtualTableName, suffix)
 }
 
 /*
