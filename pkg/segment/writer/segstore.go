@@ -82,6 +82,7 @@ type SegStore struct {
 	usingSegTree       bool
 	OrgId              uint64
 	firstTime          bool
+	primary            bool
 }
 
 // helper struct to keep track of persistent queries and columns that need to be searched
@@ -521,7 +522,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			// everytime we write compressedWip to segfile, we write a corresponding blockBloom
 			updateUnrotatedBlockInfo(segstore.SegmentKey, segstore.VirtualTableName, &segstore.wipBlock,
 				wipBlockMetadata, segstore.AllSeenColumns, segstore.numBlocks, totalMetadata, segstore.earliest_millis,
-				segstore.latest_millis, segstore.RecordCount, segstore.OrgId)
+				segstore.latest_millis, segstore.RecordCount, segstore.OrgId, segstore.primary)
 		}
 		atomic.AddUint64(&totalBytesWritten, blkSumLen)
 

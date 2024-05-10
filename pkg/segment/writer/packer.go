@@ -1213,7 +1213,7 @@ func createMockTsRollupWipBlock(segkey string) *WipBlock {
 		cnames[cidx] = currCol
 	}
 	sId := "ts-rollup"
-	segstore, err := getSegStore(sId, cTime, "test", 0, 0)
+	segstore, err := getSegStore(sId, cTime, "test", 0, 0, true)
 	if err != nil {
 		log.Errorf("createMockTsRollupWipBlock, getSegstore err=%v", err)
 		return nil

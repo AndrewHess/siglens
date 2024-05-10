@@ -68,9 +68,10 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 
 func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	var alreadyHandled bool
+	var primary bool
 	var rid uint64
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled, rid = hook(ctx, myid, grpc.INGEST_FUNC_FAKE_DATA, false)
+		alreadyHandled, primary, rid = hook(ctx, myid, grpc.INGEST_FUNC_FAKE_DATA, false)
 		if alreadyHandled {
 			return
 		}
@@ -104,7 +105,7 @@ func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		scanner.Scan()
 		rawJson := scanner.Bytes()
 		numBytes := len(rawJson)
-		err = writer.ProcessIndexRequest(rawJson, tsNow, "test-data", uint64(numBytes), false, localIndexMap, myid, rid)
+		err = writer.ProcessIndexRequest(rawJson, tsNow, "test-data", uint64(numBytes), false, localIndexMap, myid, rid, primary)
 		if err != nil {
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
 			responsebody["error"] = err.Error()

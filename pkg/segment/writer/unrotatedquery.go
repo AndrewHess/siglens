@@ -46,6 +46,7 @@ type UnrotatedSegmentInfo struct {
 	isCmiLoaded         bool   // is UnrotatedBlockCmis loaded?
 	RecordCount         int
 	orgid               uint64
+	primary             bool
 }
 
 var UnrotatedInfoLock sync.RWMutex = sync.RWMutex{}
@@ -134,7 +135,7 @@ func updateRecentlyRotatedSegmentFiles(segkey string, finalKey string) {
 
 func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipBlock,
 	blockMetadata *structs.BlockMetadataHolder, allCols map[string]bool, blockIdx uint16,
-	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid uint64) {
+	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid uint64, primary bool) {
 	UnrotatedInfoLock.Lock()
 	defer UnrotatedInfoLock.Unlock()
 
@@ -150,6 +151,7 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 			TableName:           virtualTable,
 			isCmiLoaded:         true, // default loading is true
 			orgid:               orgid,
+			primary:             primary,
 		}
 	}
 	AllUnrotatedSegmentInfo[segkey].blockSummaries = append(AllUnrotatedSegmentInfo[segkey].blockSummaries, blkSumCpy)
@@ -526,7 +528,7 @@ func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []strin
 			continue
 		}
 		totalChecked++
-		if !timeRange.CheckRangeOverLap(usi.tsRange.StartEpochMs, usi.tsRange.EndEpochMs) || usi.orgid != orgid {
+		if !(timeRange.CheckRangeOverLap(usi.tsRange.StartEpochMs, usi.tsRange.EndEpochMs) && usi.orgid == orgid && usi.primary) {
 			continue
 		}
 		if _, ok := retVal[usi.TableName]; !ok {

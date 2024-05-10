@@ -90,7 +90,7 @@ type Hooks struct {
 	EsBulkIngestInternalHook     func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, uint64) error
 	GetIdsConditionHook          func() (bool, []uint64)
 	ExtraIngestEndpointsHook     func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
-	OverrideIngestRequestHook    func(ctx *fasthttp.RequestCtx, myid uint64, ingestFunc grpc.IngestFuncEnum, useIngestHook bool) (bool, uint64)
+	OverrideIngestRequestHook    func(ctx *fasthttp.RequestCtx, myid uint64, ingestFunc grpc.IngestFuncEnum, useIngestHook bool) (bool, bool, uint64)
 
 	// Query server
 	QueryMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error

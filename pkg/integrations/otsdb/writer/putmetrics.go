@@ -41,7 +41,7 @@ type OtsdbPutResp struct {
 
 func PutMetrics(ctx *fasthttp.RequestCtx, myid uint64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled, _ := hook(ctx, myid, grpc.INGEST_FUNC_OTSDB_METRICS, false)
+		alreadyHandled, _, _ := hook(ctx, myid, grpc.INGEST_FUNC_OTSDB_METRICS, false)
 		if alreadyHandled {
 			return
 		}

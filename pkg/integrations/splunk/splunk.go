@@ -33,9 +33,10 @@ import (
 
 func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	var alreadyHandled bool
+	var primary bool
 	var rid uint64
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled, rid = hook(ctx, myid, grpc.INGEST_FUNC_SPLUNK, false)
+		alreadyHandled, primary, rid = hook(ctx, myid, grpc.INGEST_FUNC_SPLUNK, false)
 		if alreadyHandled {
 			return
 		}
@@ -61,7 +62,7 @@ func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	for _, record := range jsonObjects {
-		err, statusCode := handleSingleRecord(record, myid, rid)
+		err, statusCode := handleSingleRecord(record, myid, rid, primary)
 		if err != nil {
 			log.Errorf("ProcessSplunkHecIngestRequest: Failed to handle record, err=%v", err)
 			ctx.SetStatusCode(statusCode)
@@ -76,7 +77,7 @@ func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func handleSingleRecord(record map[string]interface{}, myid uint64, rid uint64) (error, int) {
+func handleSingleRecord(record map[string]interface{}, myid uint64, rid uint64, primary bool) (error, int) {
 	if record["index"] == "" || record["index"] == nil {
 		record["index"] = "default"
 	}
@@ -109,7 +110,7 @@ func handleSingleRecord(record map[string]interface{}, myid uint64, rid uint64) 
 	}
 
 	localIndexMap := make(map[string]string)
-	err = writer.ProcessIndexRequest(recordAsBytes, tsNow, indexNameIn, uint64(len(recordAsString)), false, localIndexMap, myid, rid)
+	err = writer.ProcessIndexRequest(recordAsBytes, tsNow, indexNameIn, uint64(len(recordAsString)), false, localIndexMap, myid, rid, primary)
 	if err != nil {
 		return fmt.Errorf("Failed to add entry to in mem buffer"), fasthttp.StatusServiceUnavailable
 	}

@@ -248,9 +248,9 @@ func cleanRecentlyRotatedInfo() {
 // place where we play with the locks
 
 func AddEntryToInMemBuf(streamid string, rawJson []byte, ts_millis uint64,
-	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64, rid uint64) error {
+	indexName string, bytesReceived uint64, flush bool, signalType SIGNAL_TYPE, orgid uint64, rid uint64, primary bool) error {
 
-	segstore, err := getSegStore(streamid, ts_millis, indexName, orgid, rid)
+	segstore, err := getSegStore(streamid, ts_millis, indexName, orgid, rid, primary)
 	if err != nil {
 		log.Errorf("AddEntryToInMemBuf, getSegstore err=%v", err)
 		return err
@@ -443,7 +443,7 @@ func InitColWip(segKey string, colName string) *ColWip {
 // varint stores length of Record , it would occupy 1-9 bytes
 // The first bit of each byte of varint specifies whether there are follow on bytes
 // rest 7 bits are used to store the number
-func getSegStore(streamid string, ts_millis uint64, table string, orgId uint64, rid uint64) (*SegStore, error) {
+func getSegStore(streamid string, ts_millis uint64, table string, orgId uint64, rid uint64, primary bool) (*SegStore, error) {
 
 	allSegStoresLock.Lock()
 	defer allSegStoresLock.Unlock()
@@ -460,7 +460,7 @@ func getSegStore(streamid string, ts_millis uint64, table string, orgId uint64, 
 		if err != nil {
 			return nil, err
 		}
-		segstore = &SegStore{suffix: suffIndex, lock: sync.Mutex{}, OrgId: orgId, firstTime: true}
+		segstore = &SegStore{suffix: suffIndex, lock: sync.Mutex{}, OrgId: orgId, firstTime: true, primary: primary}
 		segstore.initWipBlock()
 		err = segstore.resetSegStore(streamid, table)
 		if err != nil {

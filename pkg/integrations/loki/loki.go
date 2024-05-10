@@ -91,9 +91,10 @@ func parseLabels(labelsString string) map[string]string {
 //	}
 func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	var alreadyHandled bool
+	var primary bool
 	var rid uint64
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled, rid = hook(ctx, myid, grpc.INGEST_FUNC_LOKI, false)
+		alreadyHandled, primary, rid = hook(ctx, myid, grpc.INGEST_FUNC_LOKI, false)
 		if alreadyHandled {
 			return
 		}
@@ -215,7 +216,7 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 					return
 				}
 
-				err = writer.ProcessIndexRequest([]byte(test), tsNow, indexNameIn, uint64(len(test)), false, localIndexMap, myid, rid)
+				err = writer.ProcessIndexRequest([]byte(test), tsNow, indexNameIn, uint64(len(test)), false, localIndexMap, myid, rid, primary)
 				if err != nil {
 					ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 					responsebody["error"] = "Failed to add entry to in mem buffer"
