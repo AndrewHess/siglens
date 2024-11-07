@@ -170,6 +170,7 @@ func Main() {
 
 	fileutils.LogMaxOpenFiles()
 
+	// Setup the server.
 	err = StartSiglensServer(nodeType, nodeID)
 	if err != nil {
 		ShutdownSiglensServer()
