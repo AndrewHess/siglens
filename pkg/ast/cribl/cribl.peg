@@ -1,0 +1,114 @@
+{
+    package cribl
+}
+
+Start <- query:Query EOF {
+    return query, nil
+}
+
+Query <- filter:InitialSearchBlock pipes:QueryAggregatorBlock* {
+    var q ast.QueryStruct
+    q.SearchFilter = filter.(*ast.Node)
+
+    if pipes != nil {
+        queryAggSlice := pipes.([]any)
+        if len(queryAggSlice) > 0 {
+            q.PipeCommands = queryAggSlice[0].(*structs.QueryAggregators)
+            
+            // Chain together remaining QueryAggregators
+            curQueryAgg := q.PipeCommands
+            for i := 1; i < len(queryAggSlice); i++ {
+                for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
+                curQueryAgg.Next = queryAggSlice[i].(*structs.QueryAggregators)
+            }
+        }
+    }
+
+    return q, nil
+}
+
+InitialSearchBlock <- term:SearchTerm {
+    return term, nil
+}
+
+SearchTerm <- term:FieldWithStringValue {
+    return term, nil
+}
+
+FieldWithStringValue <- key:FieldName op:EqualityOperator value:String {
+    // Remove quotes from value
+    valueStr := value.(string)
+    if len(valueStr) >= 2 && valueStr[0] == '"' && valueStr[len(valueStr)-1] == '"' {
+        valueStr = valueStr[1:len(valueStr)-1]
+    }
+
+    node := &ast.Node{
+        NodeType: ast.NodeTerminal,
+        Comparison: ast.Comparison{
+            Op: op.(string),
+            Field: key.(string),
+            Values: valueStr,
+            OriginalValues: value,
+            CaseInsensitive: true,
+        },
+    }
+    return node, nil
+}
+
+QueryAggregatorBlock <- block:PipeCommand {
+    return block, nil
+}
+
+PipeCommand <- PIPE cmd:Command {
+    return cmd, nil
+}
+
+Command <- LimitCommand
+
+LimitCommand <- "limit" SPACE number:IntegerAsString {
+    limit, err := strconv.ParseUint(number.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid limit (%v): %v", number.(string), err)
+    }
+
+    headExpr := &structs.HeadExpr{
+        MaxRows: limit,
+    }
+
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            HeadRequest: headExpr,
+        },
+        HeadExpr: headExpr,
+    }
+
+    return queryAgg, nil
+}
+
+FieldName <- [a-zA-Z][a-zA-Z0-9_]* {
+    return string(c.text), nil
+}
+
+EqualityOperator <- SPACE? op:("=" / "!=") SPACE? {
+    return string(op.([]byte)), nil
+}
+
+String <- QuotedString / UnquotedString
+
+QuotedString <- '"' [^"]* '"' {
+    return string(c.text), nil
+}
+
+UnquotedString <- [a-zA-Z0-9_.-]+ {
+    return string(c.text), nil
+}
+
+IntegerAsString <- [0-9]+ {
+    return string(c.text), nil
+}
+
+// Terminals
+PIPE <- SPACE? "|" SPACE?
+SPACE <- [ \t\n\r]+
+EOF <- !.
