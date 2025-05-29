@@ -378,6 +378,9 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     } else if (queryLanguage == 'Splunk QL') {
         $('#option-3').addClass('active');
         selectedQueryLanguageId = '3';
+    } else if (queryLanguage == 'Cribl QL') {
+        $('#option-4').addClass('active');
+        selectedQueryLanguageId = '4';
     }
     queryMode = queryMode.replace('"', '');
     updateQueryModeUI(queryMode);

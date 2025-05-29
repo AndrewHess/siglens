@@ -772,6 +772,10 @@ function displayQueryLangToolTip(selectedQueryLangID) {
             $('#info-icon-spl').show();
             $('#filter-input').attr('placeholder', "Enter your SPL query here, or click the 'i' icon for examples");
             break;
+        case '4':
+        case 4:
+            $('#filter-input').attr('placeholder', "Enter your Cribl QL query here");
+            break;
     }
 }
 function toggleClearButtonVisibility() {
