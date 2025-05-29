@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/siglens/siglens/pkg/ast"
+	"github.com/siglens/siglens/pkg/ast/cribl"
 	"github.com/siglens/siglens/pkg/ast/spl"
 	"github.com/siglens/siglens/pkg/ast/sql"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -180,6 +181,8 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 	case "Splunk QL":
 		res, err = spl.Parse("", []byte(searchText))
 		forceCaseSensitive = false
+	case "Cribl QL":
+		res, err = cribl.Parse("", []byte(searchText))
 	case "Log QL":
 		if hook := hooks.GlobalHooks.LogQLParse; hook != nil {
 			res, err = hook("", []byte(searchText))

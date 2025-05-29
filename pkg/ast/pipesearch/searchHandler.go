@@ -310,6 +310,8 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Pipe QL", indexNameIn)
 	} else if queryLanguageType == "Log QL" {
 		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Log QL", indexNameIn)
+	} else if queryLanguageType == "Cribl QL" {
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Cribl QL", indexNameIn)
 	} else if queryLanguageType == "Splunk QL" {
 		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 		if err != nil {
